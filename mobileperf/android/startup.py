@@ -13,6 +13,7 @@ import time,datetime
 import os
 import sys
 import queue
+import ws_queue
 import base64
 import json
 import subprocess
@@ -77,6 +78,20 @@ class StartUp(object):
         self.activity_queue = queue.Queue()
         self.fd_queue = queue.Queue()
         self.thread_queue = queue.Queue()
+
+        self.mem_queue = ws_queue.WsQueue('mem_queue')
+        self.traffic_queue = ws_queue.WsQueue('traffic_queue')
+        self.fps_queue = ws_queue.WsQueue('fps_queue')
+        self.thread_queue = ws_queue.WsQueue('thread_queue')
+        # TODO 1
+        # Use more WsQueue to replace regular queues respectively
+        # self.xxx_queue = ws_queue.WsQueue('xxx_queue')
+        # Make sure 'xxx_queue' is a valid option! You can find all the
+        # available options in ws_queue.py
+
+        # TODO 2
+        # Pass xxx_queue to XxxMonitor as the queue argment respectively
+        # see line 218
 
     def get_queue_dic(self):
         queue_dic = {}
@@ -201,15 +216,15 @@ class StartUp(object):
             # datahandle = DataWorker(self.get_queue_dic())
             # 将queue传进去，与datahandle那个线程交互
             self.add_monitor(CpuMonitor(self.serialnum, self.packages, self.frequency, self.timeout))
-            self.add_monitor(MemMonitor(self.serialnum, self.packages, self.frequency, self.timeout))
-            self.add_monitor(TrafficMonitor(self.serialnum, self.packages, self.frequency, self.timeout))
+            self.add_monitor(MemMonitor(self.serialnum, self.packages, self.frequency, self.timeout, self.mem_queue))
+            self.add_monitor(TrafficMonitor(self.serialnum, self.packages, self.frequency, self.timeout, self.traffic_queue))
             # 软件方式 获取电量不准，已用硬件方案测试功耗
             # self.add_monitor(PowerMonitor(self.serialnum, self.frequency,self.timeout))
-            self.add_monitor(FPSMonitor(self.serialnum,self.packages[0],self.frequency,self.timeout))
+            self.add_monitor(FPSMonitor(self.serialnum,self.packages[0],self.frequency,self.timeout, self.fps_queue))
             # 6.0以下能采集到fd数据，7.0以上没权限
             if self.device.adb.get_sdk_version() <= 23:
                 self.add_monitor(FdMonitor(self.serialnum, self.packages[0], self.frequency,self.timeout))
-            self.add_monitor(ThreadNumMonitor(self.serialnum,self.packages[0],self.frequency,self.timeout))
+            self.add_monitor(ThreadNumMonitor(self.serialnum,self.packages[0],self.frequency,self.timeout, self.thread_queue))
             if self.config_dic["monkey"] == "true":
                 self.add_monitor(Monkey(self.serialnum, self.packages[0]))
             if self.config_dic["main_activity"] and self.config_dic["activity_list"]:
